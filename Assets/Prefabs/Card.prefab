@@ -58,14 +58,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0, g: 0, b: 0, a: 1}
+  m_Color: {r: 0, g: 0.85185194, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: c0cd16eca22624c878a09da8a163fc94, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 686aac3e1e22c45d8b08757da8f5cd75, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -299,5 +299,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   frontImage: {fileID: 8535111002865756618}
   backImage: {fileID: 6972944653302803637}
+  cardId: 0
   isFlipped: 0
   isMatched: 0

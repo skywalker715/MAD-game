@@ -6,44 +6,46 @@ public class Card : MonoBehaviour
     public Image frontImage;
     public Image backImage;
 
-    [HideInInspector] public int cardId;
-    [HideInInspector] public bool isFlipped = false;
-    [HideInInspector] public bool isMatched = false;
+    public int cardId;
+    public bool IsFlipped { get; private set; } = false;
+    public bool IsMatched { get; private set; } = false;
 
-    public void SetCard(int id, Sprite frontSprite)
+    public void SetCard(Sprite image, int id)
     {
+        frontImage.sprite = image;
         cardId = id;
-        frontImage.sprite = frontSprite;
-        SetMatched(false);
-        isFlipped = false;
-        frontImage.gameObject.SetActive(false);
-        backImage.gameObject.SetActive(true);
+        FlipCard(false);
+    }
+
+    public void OnClick()
+    {
+        if (IsMatched || IsFlipped || GameManager.Instance == null)
+            return;
+
+        GameManager.Instance.CheckCard(this);
     }
 
     public void FlipCard()
     {
-        if (isMatched) return;
+        IsFlipped = !IsFlipped;
+        frontImage.gameObject.SetActive(IsFlipped);
+        backImage.gameObject.SetActive(!IsFlipped);
+    }
 
-        isFlipped = !isFlipped;
-        frontImage.gameObject.SetActive(isFlipped);
-        backImage.gameObject.SetActive(!isFlipped);
+    public void FlipCard(bool showFront)
+    {
+        IsFlipped = showFront;
+        frontImage.gameObject.SetActive(showFront);
+        backImage.gameObject.SetActive(!showFront);
     }
 
     public void SetMatched(bool matched)
     {
-        isMatched = matched;
+        IsMatched = matched;
         if (matched)
         {
             frontImage.gameObject.SetActive(true);
             backImage.gameObject.SetActive(false);
         }
-    }
-
-    public void OnClick()
-    {
-        if (isFlipped || isMatched) return;
-
-        FlipCard();
-        GameManager.Instance.CardRevealed(this);
     }
 }
