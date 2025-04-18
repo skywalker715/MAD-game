@@ -71,7 +71,7 @@ public class GameManager : MonoBehaviour
                 break;
             case Difficulty.Hard:
                 matches = 12;    // 24 cards
-                columns = 6;
+                columns = 4;
                 break;
             default:
                 matches = 4;
