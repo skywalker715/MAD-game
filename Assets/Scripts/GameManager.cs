@@ -14,8 +14,15 @@ public class GameManager : MonoBehaviour
 
     private float timeElapsed = 0f;
     private bool timerRunning = true;
-    private int score = 0;
+    private int score = 0; // Kept for backward compatibility
     private int totalMatches = 0;
+
+    // New scoring system variables
+    private int baseScore;
+    private int attemptCount = 0;
+    private float attemptPenalty;
+    private float timePenalty;
+    private int currentScore;
 
     private Card firstRevealed;
     private Card secondRevealed;
@@ -38,6 +45,36 @@ public class GameManager : MonoBehaviour
     void Start()
     {
         difficulty = selectedDifficulty;
+        
+        // Initialize scoring system based on difficulty
+        switch (difficulty)
+        {
+            case Difficulty.Easy:
+                baseScore = 1000;
+                attemptPenalty = 5f;
+                timePenalty = 1f;
+                break;
+            case Difficulty.Medium:
+                baseScore = 2000;
+                attemptPenalty = 4f;
+                timePenalty = 0.7f;
+                break;
+            case Difficulty.Hard:
+                baseScore = 3000;
+                attemptPenalty = 3f;
+                timePenalty = 0.3f;
+                break;
+            default:
+                baseScore = 1000;
+                attemptPenalty = 5f;
+                timePenalty = 2f;
+                break;
+        }
+        
+        // Initialize current score
+        currentScore = baseScore;
+        scoreText.text = $"Score: {currentScore}";
+        
         GenerateLevel();
     }
 
@@ -49,6 +86,10 @@ public class GameManager : MonoBehaviour
             int minutes = Mathf.FloorToInt(timeElapsed / 60);
             int seconds = Mathf.FloorToInt(timeElapsed % 60);
             timerText.text = $"Time: {minutes:00}:{seconds:00}";
+            
+            // Apply time penalty to score
+            currentScore = UnityEngine.Mathf.Max(0, UnityEngine.Mathf.RoundToInt(baseScore - (attemptCount * attemptPenalty) - (timeElapsed * timePenalty)));
+            scoreText.text = $"Score: {currentScore}";
         }
     }
 
@@ -89,6 +130,13 @@ public class GameManager : MonoBehaviour
             return;
 
         card.FlipCard();
+        
+        // Increment attempt count for each card flip
+        attemptCount++;
+        
+        // Update score based on the formula
+        currentScore = UnityEngine.Mathf.Max(0, UnityEngine.Mathf.RoundToInt(baseScore - (attemptCount * attemptPenalty) - (timeElapsed * timePenalty)));
+        scoreText.text = $"Score: {currentScore}";
 
         if (firstRevealed == null)
         {
@@ -110,14 +158,22 @@ public class GameManager : MonoBehaviour
         {
             firstRevealed.SetMatched(true);
             secondRevealed.SetMatched(true);
-            score++;
-            scoreText.text = $"Score: {score}";
-
+            score++; // Keep for backward compatibility
+            
+            // Score is already updated in CheckCard and Update methods
+            
             if (score >= totalMatches)
             {
                 timerRunning = false;
                 endScreen.SetActive(true);
                 winSound.Play();
+                
+                // Display final score on end screen if there's a text component
+                TMP_Text finalScoreText = endScreen.GetComponentInChildren<TMP_Text>();
+                if (finalScoreText != null)
+                {
+                    finalScoreText.text = $"You did it! \n Final Score: {currentScore}";
+                }
             }
         }
         else
@@ -146,7 +202,11 @@ public class GameManager : MonoBehaviour
         score = 0;
         timeElapsed = 0f;
         timerRunning = true;
-        scoreText.text = "Score: 0";
+        
+        // Reset scoring system
+        attemptCount = 0;
+        currentScore = baseScore;
+        scoreText.text = $"Score: {currentScore}";
         timerText.text = "Time: 00:00";
 
         if (endScreen != null)
@@ -155,6 +215,7 @@ public class GameManager : MonoBehaviour
         firstRevealed = null;
         secondRevealed = null;
     }
+    
     public void BackToMenu()
     {
         UnityEngine.SceneManagement.SceneManager.LoadScene("HomeScene");
