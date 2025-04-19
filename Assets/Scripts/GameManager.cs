@@ -2,6 +2,9 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections;
+using System;
+using System.Text;
+using UnityEngine.Networking;
 
 public class GameManager : MonoBehaviour
 {
@@ -14,10 +17,10 @@ public class GameManager : MonoBehaviour
 
     private float timeElapsed = 0f;
     private bool timerRunning = true;
-    private int score = 0; // Kept for backward compatibility
+    private int score = 0;
     private int totalMatches = 0;
 
-    // New scoring system variables
+
     private int baseScore;
     private int attemptCount = 0;
     private float attemptPenalty;
@@ -31,6 +34,8 @@ public class GameManager : MonoBehaviour
     public enum Difficulty { Easy, Medium, Hard }
     public static Difficulty selectedDifficulty = Difficulty.Easy;
     public Difficulty difficulty = Difficulty.Easy;
+
+    private string serverUrl = "http://localhost:3000";
 
     void Awake()
     {
@@ -131,10 +136,8 @@ public class GameManager : MonoBehaviour
 
         card.FlipCard();
         
-        // Increment attempt count for each card flip
         attemptCount++;
         
-        // Update score based on the formula
         currentScore = UnityEngine.Mathf.Max(0, UnityEngine.Mathf.RoundToInt(baseScore - (attemptCount * attemptPenalty) - (timeElapsed * timePenalty)));
         scoreText.text = $"Score: {currentScore}";
 
@@ -158,9 +161,7 @@ public class GameManager : MonoBehaviour
         {
             firstRevealed.SetMatched(true);
             secondRevealed.SetMatched(true);
-            score++; // Keep for backward compatibility
-            
-            // Score is already updated in CheckCard and Update methods
+            score++;
             
             if (score >= totalMatches)
             {
@@ -168,12 +169,13 @@ public class GameManager : MonoBehaviour
                 endScreen.SetActive(true);
                 winSound.Play();
                 
-                // Display final score on end screen if there's a text component
                 TMP_Text finalScoreText = endScreen.GetComponentInChildren<TMP_Text>();
                 if (finalScoreText != null)
                 {
                     finalScoreText.text = $"You did it! \n Final Score: {currentScore}";
                 }
+
+                StartCoroutine(SendScoreToDatabase());
             }
         }
         else
@@ -185,6 +187,36 @@ public class GameManager : MonoBehaviour
         firstRevealed = null;
         secondRevealed = null;
         isProcessing = false;
+    }
+
+    private IEnumerator SendScoreToDatabase()
+    {
+        int userId = PlayerPrefs.GetInt("UserId", -1);
+        if (userId == -1)
+        {
+            Debug.LogError("User not logged in!");
+            yield break;
+        }
+
+        string jsonData = $"{{\"user_id\":{userId}, \"score\":{currentScore}}}";
+        using (UnityWebRequest request = new UnityWebRequest(serverUrl + "/game-score", "POST"))
+        {
+            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
+            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+            request.downloadHandler = new DownloadHandlerBuffer();
+            request.SetRequestHeader("Content-Type", "application/json");
+            
+            yield return request.SendWebRequest();
+
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                Debug.Log("Score saved successfully: " + request.downloadHandler.text);
+            }
+            else
+            {
+                Debug.LogError("Error saving score: " + request.error);
+            }
+        }
     }
 
     public void RestartGame()
@@ -203,7 +235,6 @@ public class GameManager : MonoBehaviour
         timeElapsed = 0f;
         timerRunning = true;
         
-        // Reset scoring system
         attemptCount = 0;
         currentScore = baseScore;
         scoreText.text = $"Score: {currentScore}";
