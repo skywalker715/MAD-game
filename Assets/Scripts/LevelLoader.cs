@@ -13,4 +13,9 @@ public class LevelLoader : MonoBehaviour
         GameManager.selectedDifficulty = (GameManager.Difficulty)difficulty;
         SceneManager.LoadScene("MainGame");
     }
+
+    public void GoToStatistics()
+    {
+        SceneManager.LoadScene("Statistics");
+    }
 }
