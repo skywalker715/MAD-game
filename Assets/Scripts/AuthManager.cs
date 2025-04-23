@@ -26,7 +26,7 @@ public class AuthManager : MonoBehaviour
     public Button goToLoginButton;
     public TMP_Text registerStatusText;
 
-    private string serverUrl = "http://localhost:3000"; 
+    public string serverUrl = "http://localhost:3000"; 
     private static AuthManager _instance;
     
     public static AuthManager Instance
