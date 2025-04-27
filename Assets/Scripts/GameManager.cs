@@ -35,7 +35,7 @@ public class GameManager : MonoBehaviour
     public static Difficulty selectedDifficulty = Difficulty.Easy;
     public Difficulty difficulty = Difficulty.Easy;
 
-    private string serverUrl = "http://192.168.1.36:3000";
+    private string serverUrl = "http://localhost:3000";
 
     void Awake()
     {
