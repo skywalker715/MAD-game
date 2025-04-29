@@ -6,8 +6,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.SceneManagement;
-using Proyecto26;
-using UnityEngine.Networking;
 
 public class StatisticsManager : MonoBehaviour
 {
@@ -21,37 +19,8 @@ public class StatisticsManager : MonoBehaviour
     [SerializeField] private TextMeshProUGUI noDataText;
 
     private int userId;
-    private List<ScoreData> scoreHistory = new List<ScoreData>();
-    private StatisticsData statisticsData;
-
-    [Serializable]
-    private class ScoreData
-    {
-        public int score;
-        public string played_at;
-    }
-
-    [Serializable]
-    private class StatisticsData
-    {
-        public int total_games;
-        public int highest_score;
-        public double average_score;
-        public string first_game;
-        public string last_game;
-    }
-
-    [Serializable]
-    private class ChartResponse
-    {
-        public string chartUrl;
-    }
-
-    [Serializable]
-    private class ScoreDataWrapper
-    {
-        public List<ScoreData> Items;
-    }
+    private List<APIService.ScoreData> scoreHistory = new List<APIService.ScoreData>();
+    private APIService.UserStatistics statisticsData;
 
     private void Start()
     {
@@ -76,26 +45,25 @@ public class StatisticsManager : MonoBehaviour
 
     private void FetchStatistics()
     {
-        string url = $"{AuthManager.Instance.serverUrl}/user/{userId}/statistics";
-        
-        RestClient.Get<StatisticsData>(url)
-            .Then(response => {
+        APIService.Instance.GetUserStatistics(
+            userId,
+            response => {
                 statisticsData = response;
                 UpdateStatisticsUI();
-            })
-            .Catch(error => {
+            },
+            error => {
                 Debug.LogError($"Error fetching statistics: {error.Message}");
                 ShowNoDataMessage("Failed to load statistics");
-            });
+            }
+        );
     }
 
     private void FetchScoreHistory()
     {
-        string url = $"{AuthManager.Instance.serverUrl}/user/{userId}/scores";
-        
-        RestClient.GetArray<ScoreData>(url)
-            .Then(response => {
-                scoreHistory = response.ToList();
+        APIService.Instance.GetUserScores(
+            userId,
+            response => {
+                scoreHistory = response;
                 
                 if (scoreHistory != null && scoreHistory.Count > 0)
                 {
@@ -106,19 +74,19 @@ public class StatisticsManager : MonoBehaviour
                 {
                     ShowNoDataMessage("No score history available");
                 }
-            })
-            .Catch(error => {
+            },
+            error => {
                 Debug.LogError($"Error fetching score history: {error.Message}");
                 ShowNoDataMessage("Failed to load score history");
-            });
+            }
+        );
     }
 
     private void FetchScoreGraph()
     {
-        string url = $"{AuthManager.Instance.serverUrl}/user/{userId}/score-graph";
-        
-        RestClient.Get<ChartResponse>(url)
-            .Then(response => {
+        APIService.Instance.GetScoreGraph(
+            userId,
+            response => {
                 if (string.IsNullOrEmpty(response.chartUrl))
                 {
                     ShowNoDataMessage("No score graph available");
@@ -126,41 +94,30 @@ public class StatisticsManager : MonoBehaviour
                 }
 
                 LoadChartImage(response.chartUrl);
-            })
-            .Catch(error => {
+            },
+            error => {
                 Debug.LogError($"Error fetching score graph: {error.Message}");
                 ShowNoDataMessage("Failed to load score graph");
-            });
+            }
+        );
     }
 
     private void LoadChartImage(string imageUrl)
     {
-        RestClient.Get(new RequestHelper {
-            Uri = imageUrl,
-            DownloadHandler = new DownloadHandlerTexture()
-        })
-        .Then(response => {
-            try
-            {
-                Texture2D texture = ((DownloadHandlerTexture)response.Request.downloadHandler).texture;
-                Sprite sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), Vector2.one * 0.5f);
-                
+        APIService.Instance.LoadChartImage(
+            imageUrl,
+            sprite => {
                 if (graphImage != null)
                 {
                     graphImage.sprite = sprite;
                     graphImage.gameObject.SetActive(true);
                 }
+            },
+            error => {
+                Debug.LogError($"Error loading chart image: {error.Message}");
+                ShowNoDataMessage("Failed to load chart image");
             }
-            catch (Exception e)
-            {
-                Debug.LogError($"Error creating chart sprite: {e.Message}");
-                ShowNoDataMessage("Error displaying chart image");
-            }
-        })
-        .Catch(error => {
-            Debug.LogError($"Error loading chart image: {error.Message}");
-            ShowNoDataMessage("Failed to load chart image");
-        });
+        );
     }
 
     private void UpdateStatisticsUI()

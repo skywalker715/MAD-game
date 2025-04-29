@@ -29,9 +29,6 @@ public class GameManager : MonoBehaviour
     public enum Difficulty { Easy, Medium, Hard }
     public static Difficulty selectedDifficulty = Difficulty.Easy;
     public Difficulty difficulty = Difficulty.Easy;
-
-    private string serverUrl = "http://localhost:3000";
-    
     
     public int totalGames = 0;
     public int highestScore = 0;
@@ -39,15 +36,7 @@ public class GameManager : MonoBehaviour
     public string firstGameDate = "";
     public string lastGameDate = "";
     
-    
-    public List<ScoreData> scoreHistory = new List<ScoreData>();
-    
-    [System.Serializable]
-    public class ScoreData
-    {
-        public int score;
-        public string played_at;
-    }
+    public List<APIService.ScoreData> scoreHistory = new List<APIService.ScoreData>();
 
     void Awake()
     {
@@ -62,7 +51,6 @@ public class GameManager : MonoBehaviour
     void Start()
     {
         difficulty = selectedDifficulty;
-        
         
         switch (difficulty)
         {
@@ -88,12 +76,10 @@ public class GameManager : MonoBehaviour
                 break;
         }
         
-        
         currentScore = baseScore;
         UIManager.Instance.UpdateScore(currentScore);
         
         GenerateLevel();
-        
         
         int userId = PlayerPrefs.GetInt("UserId", -1);
         if (userId != -1)
@@ -109,7 +95,6 @@ public class GameManager : MonoBehaviour
         {
             timeElapsed += Time.deltaTime;
             UIManager.Instance.UpdateTimer(timeElapsed);
-            
             
             currentScore = UnityEngine.Mathf.Max(0, UnityEngine.Mathf.RoundToInt(baseScore - (attemptCount * attemptPenalty) - (timeElapsed * timePenalty)));
             UIManager.Instance.UpdateScore(currentScore);
@@ -221,37 +206,25 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        
-        ScoreSubmission scoreData = new ScoreSubmission
-        {
-            user_id = userId,
-            score = currentScore
-        };
-        
-        string jsonData = JsonUtility.ToJson(scoreData);
-        Debug.Log($"Sending score to: {serverUrl}/game-score with data: {jsonData}");
-        
-        RestClient.Post($"{serverUrl}/game-score", scoreData)
-            .Then(response => {
-                Debug.Log("Score saved successfully: " + response.Text);
-                
+        APIService.Instance.SendGameScore(
+            userId,
+            currentScore,
+            response => {
+                Debug.Log("Score saved successfully: " + response);
                 LoadUserStatistics(userId);
                 LoadUserScores(userId);
-            })
-            .Catch(error => {
+            },
+            error => {
                 Debug.LogError("Error saving score: " + error.Message);
-                if (error is RequestException requestError)
-                {
-                    Debug.LogError($"Status code: {requestError.StatusCode}, Response: {requestError.Response}");
-                }
-            });
+            }
+        );
     }
     
     public void LoadUserStatistics(int userId)
     {
-        RestClient.Get($"{serverUrl}/user/{userId}/statistics")
-            .Then(response => {
-                var stats = JsonUtility.FromJson<UserStatistics>(response.Text);
+        APIService.Instance.GetUserStatistics(
+            userId,
+            stats => {
                 totalGames = stats.total_games;
                 highestScore = stats.highest_score;
                 averageScore = stats.average_score;
@@ -259,61 +232,40 @@ public class GameManager : MonoBehaviour
                 lastGameDate = stats.last_game;
                 
                 Debug.Log($"User statistics loaded: {totalGames} games, highest score: {highestScore}");
-            })
-            .Catch(error => {
+            },
+            error => {
                 Debug.LogError("Error loading user statistics: " + error.Message);
-            });
+            }
+        );
     }
     
     public void LoadUserScores(int userId)
     {
-        RestClient.Get($"{serverUrl}/user/{userId}/scores")
-            .Then(response => {
+        APIService.Instance.GetUserScores(
+            userId,
+            scores => {
                 scoreHistory.Clear();
-                var scores = JsonHelper.FromJson<ScoreData>(response.Text);
                 scoreHistory.AddRange(scores);
-                
                 Debug.Log($"User scores loaded: {scoreHistory.Count} scores");
-            })
-            .Catch(error => {
+            },
+            error => {
                 Debug.LogError("Error loading user scores: " + error.Message);
-            });
+            }
+        );
     }
     
     public void GetScoreGraphUrl(int userId, Action<string> callback)
     {
-        RestClient.Get($"{serverUrl}/user/{userId}/score-graph")
-            .Then(response => {
-                var result = JsonUtility.FromJson<ScoreGraphResponse>(response.Text);
+        APIService.Instance.GetScoreGraph(
+            userId,
+            result => {
                 callback(result.chartUrl);
-            })
-            .Catch(error => {
+            },
+            error => {
                 Debug.LogError("Error getting score graph: " + error.Message);
                 callback("");
-            });
-    }
-    
-    [System.Serializable]
-    private class UserStatistics
-    {
-        public int total_games;
-        public int highest_score;
-        public float average_score;
-        public string first_game;
-        public string last_game;
-    }
-    
-    [System.Serializable]
-    private class ScoreGraphResponse
-    {
-        public string chartUrl;
-    }
-
-    [System.Serializable]
-    private class ScoreSubmission
-    {
-        public int user_id;
-        public int score;
+            }
+        );
     }
 
     public void RestartGame()
@@ -349,23 +301,8 @@ public class GameManager : MonoBehaviour
     
     public void BackToMenu()
     {
-        
         Time.timeScale = 1f;
         UnityEngine.SceneManagement.SceneManager.LoadScene("HomeScene");
-    }
-}
-public static class JsonHelper
-{
-    public static T[] FromJson<T>(string json)
-    {
-        Wrapper<T> wrapper = JsonUtility.FromJson<Wrapper<T>>("{\"Items\":" + json + "}");
-        return wrapper.Items;
-    }
-
-    [System.Serializable]
-    private class Wrapper<T>
-    {
-        public T[] Items;
     }
 }
 

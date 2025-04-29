@@ -26,7 +26,6 @@ public class AuthManager : MonoBehaviour
     public Button goToLoginButton;
     public TMP_Text registerStatusText;
 
-    public string serverUrl = "http://localhost:3000";
     private static AuthManager _instance;
     
     public static AuthManager Instance
@@ -129,41 +128,17 @@ public class AuthManager : MonoBehaviour
 
     private void RegisterUser(string username, string password)
     {
-        
-        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
-        {
-            Debug.LogError("Username or password is empty");
-            registerStatusText.text = "Username and password cannot be empty";
-            return;
-        }
-        
-        
-        UserData userData = new UserData
-        {
-            username = username,
-            password = password
-        };
-        
-        string jsonData = JsonUtility.ToJson(userData);
-        Debug.Log($"Sending registration request to: {serverUrl}/register with data: {jsonData}");
-        
-        RestClient.Post($"{serverUrl}/register", userData)
-            .Then(response => {
-                Debug.Log("Registration response: " + response.Text);
-                
-                var registerResponse = JsonUtility.FromJson<RegisterResponse>(response.Text);
+        APIService.Instance.RegisterUser(
+            username, 
+            password, 
+            response => {
                 registerStatusText.text = "Registration successful!";
-                
                 StartCoroutine(ShowLoginPanelAfterDelay(1.5f));
-            })
-            .Catch(error => {
-                Debug.LogError("Registration error: " + error.Message);
-                if (error is RequestException requestError)
-                {
-                    Debug.LogError($"Status code: {requestError.StatusCode}, Response: {requestError.Response}");
-                }
+            },
+            error => {
                 registerStatusText.text = "Registration failed: " + error.Message;
-            });
+            }
+        );
     }
 
     private IEnumerator ShowLoginPanelAfterDelay(float delay)
@@ -174,75 +149,29 @@ public class AuthManager : MonoBehaviour
 
     private void LoginUser(string username, string password)
     {
-        
-        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
-        {
-            Debug.LogError("Username or password is empty");
-            loginStatusText.text = "Username and password cannot be empty";
-            return;
-        }
-        
-        
-        UserData userData = new UserData
-        {
-            username = username,
-            password = password
-        };
-        
-        string jsonData = JsonUtility.ToJson(userData);
-        Debug.Log($"Sending login request to: {serverUrl}/login with data: {jsonData}");
-        
-        RestClient.Post($"{serverUrl}/login", userData)
-            .Then(response => {
-                Debug.Log("Login response: " + response.Text);
-                
-                var loginResponse = JsonUtility.FromJson<LoginResponse>(response.Text);
-                
-                PlayerPrefs.SetInt("UserId", loginResponse.id);
-                PlayerPrefs.SetString("Username", loginResponse.username);
+        APIService.Instance.LoginUser(
+            username,
+            password,
+            response => {
+                PlayerPrefs.SetInt("UserId", response.id);
+                PlayerPrefs.SetString("Username", response.username);
                 PlayerPrefs.Save();
                 
                 loginStatusText.text = "Login successful!";
                 
                 StartCoroutine(LoadHomeSceneAfterDelay(1.0f));
-            })
-            .Catch(error => {
-                Debug.LogError("Login error: " + error.Message);
-                if (error is RequestException requestError)
-                {
-                    Debug.LogError($"Status code: {requestError.StatusCode}, Response: {requestError.Response}");
-                }
+            },
+            error => {
                 loginStatusText.text = "Login failed: " + 
                     (error is RequestException && ((RequestException)error).StatusCode == 401 ? 
                     "Invalid username or password" : error.Message);
-            });
+            }
+        );
     }
 
     private IEnumerator LoadHomeSceneAfterDelay(float delay)
     {
         yield return new WaitForSeconds(delay);
         SceneManager.LoadScene("HomeScene");
-    }
-
-    [Serializable]
-    private class RegisterResponse
-    {
-        public int id;
-        public string username;
-    }
-
-    [Serializable]
-    private class LoginResponse
-    {
-        public int id;
-        public string username;
-        public string message;
-    }
-
-    [Serializable]
-    private class UserData
-    {
-        public string username;
-        public string password;
     }
 }
