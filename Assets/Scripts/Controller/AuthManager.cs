@@ -5,7 +5,7 @@ using UnityEngine.SceneManagement;
 using System.Collections;
 using System;
 using System.Text;
-using UnityEngine.Networking;
+using Proyecto26;
 
 public class AuthManager : MonoBehaviour
 {
@@ -26,7 +26,7 @@ public class AuthManager : MonoBehaviour
     public Button goToLoginButton;
     public TMP_Text registerStatusText;
 
-    public string serverUrl = "http://localhost:3000"; 
+    public string serverUrl = "http://localhost:3000";
     private static AuthManager _instance;
     
     public static AuthManager Instance
@@ -56,10 +56,8 @@ public class AuthManager : MonoBehaviour
 
     private void Start()
     {
-
         ShowLoginPanel();
         
-
         loginButton.onClick.AddListener(OnLoginClick);
         registerButton.onClick.AddListener(OnRegisterClick);
         goToRegisterButton.onClick.AddListener(ShowRegisterPanel);
@@ -97,7 +95,6 @@ public class AuthManager : MonoBehaviour
         string username = loginUsernameInput.text;
         string password = loginPasswordInput.text;
         
-
         if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
         {
             loginStatusText.text = "Please enter both username and password";
@@ -105,7 +102,7 @@ public class AuthManager : MonoBehaviour
         }
         
         loginStatusText.text = "Logging in...";
-        StartCoroutine(LoginUser(username, password));
+        LoginUser(username, password);
     }
 
     public void OnRegisterClick()
@@ -114,14 +111,12 @@ public class AuthManager : MonoBehaviour
         string password = registerPasswordInput.text;
         string confirmPassword = registerConfirmPasswordInput.text;
         
-
         if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(confirmPassword))
         {
             registerStatusText.text = "Please fill all fields";
             return;
         }
         
-
         if (password != confirmPassword)
         {
             registerStatusText.text = "Passwords do not match";
@@ -129,80 +124,105 @@ public class AuthManager : MonoBehaviour
         }
         
         registerStatusText.text = "Registering...";
-        StartCoroutine(RegisterUser(username, password));
+        RegisterUser(username, password);
     }
 
-    private IEnumerator RegisterUser(string username, string password)
+    private void RegisterUser(string username, string password)
     {
-        string jsonData = $"{{\"username\":\"{username}\", \"password\":\"{password}\"}}";
-        using (UnityWebRequest request = new UnityWebRequest(serverUrl + "/register", "POST"))
+        
+        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
         {
-            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
-            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
-            
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.Success)
-            {
-                Debug.Log("Registration response: " + request.downloadHandler.text);
+            Debug.LogError("Username or password is empty");
+            registerStatusText.text = "Username and password cannot be empty";
+            return;
+        }
+        
+        
+        UserData userData = new UserData
+        {
+            username = username,
+            password = password
+        };
+        
+        string jsonData = JsonUtility.ToJson(userData);
+        Debug.Log($"Sending registration request to: {serverUrl}/register with data: {jsonData}");
+        
+        RestClient.Post($"{serverUrl}/register", userData)
+            .Then(response => {
+                Debug.Log("Registration response: " + response.Text);
                 
-
-                JsonUtility.FromJson<RegisterResponse>(request.downloadHandler.text);
+                var registerResponse = JsonUtility.FromJson<RegisterResponse>(response.Text);
                 registerStatusText.text = "Registration successful!";
                 
-
-                yield return new WaitForSeconds(1.5f);
-                ShowLoginPanel();
-            }
-            else
-            {
-                Debug.LogError("Registration error: " + request.error);
-                registerStatusText.text = "Registration failed: " + request.error;
-            }
-        }
+                StartCoroutine(ShowLoginPanelAfterDelay(1.5f));
+            })
+            .Catch(error => {
+                Debug.LogError("Registration error: " + error.Message);
+                if (error is RequestException requestError)
+                {
+                    Debug.LogError($"Status code: {requestError.StatusCode}, Response: {requestError.Response}");
+                }
+                registerStatusText.text = "Registration failed: " + error.Message;
+            });
     }
 
-    private IEnumerator LoginUser(string username, string password)
+    private IEnumerator ShowLoginPanelAfterDelay(float delay)
     {
-        string jsonData = $"{{\"username\":\"{username}\", \"password\":\"{password}\"}}";
-        using (UnityWebRequest request = new UnityWebRequest(serverUrl + "/login", "POST"))
+        yield return new WaitForSeconds(delay);
+        ShowLoginPanel();
+    }
+
+    private void LoginUser(string username, string password)
+    {
+        
+        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
         {
-            byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
-            request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-            request.downloadHandler = new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
-            
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.Success)
-            {
-                Debug.Log("Login response: " + request.downloadHandler.text);
+            Debug.LogError("Username or password is empty");
+            loginStatusText.text = "Username and password cannot be empty";
+            return;
+        }
+        
+        
+        UserData userData = new UserData
+        {
+            username = username,
+            password = password
+        };
+        
+        string jsonData = JsonUtility.ToJson(userData);
+        Debug.Log($"Sending login request to: {serverUrl}/login with data: {jsonData}");
+        
+        RestClient.Post($"{serverUrl}/login", userData)
+            .Then(response => {
+                Debug.Log("Login response: " + response.Text);
                 
-
-                LoginResponse response = JsonUtility.FromJson<LoginResponse>(request.downloadHandler.text);
+                var loginResponse = JsonUtility.FromJson<LoginResponse>(response.Text);
                 
-
-                PlayerPrefs.SetInt("UserId", response.id);
-                PlayerPrefs.SetString("Username", response.username);
+                PlayerPrefs.SetInt("UserId", loginResponse.id);
+                PlayerPrefs.SetString("Username", loginResponse.username);
                 PlayerPrefs.Save();
                 
                 loginStatusText.text = "Login successful!";
                 
-
-                yield return new WaitForSeconds(1.0f);
-                SceneManager.LoadScene("HomeScene");
-            }
-            else
-            {
-                Debug.LogError("Login error: " + request.error);
+                StartCoroutine(LoadHomeSceneAfterDelay(1.0f));
+            })
+            .Catch(error => {
+                Debug.LogError("Login error: " + error.Message);
+                if (error is RequestException requestError)
+                {
+                    Debug.LogError($"Status code: {requestError.StatusCode}, Response: {requestError.Response}");
+                }
                 loginStatusText.text = "Login failed: " + 
-                    (request.responseCode == 401 ? "Invalid username or password" : request.error);
-            }
-        }
+                    (error is RequestException && ((RequestException)error).StatusCode == 401 ? 
+                    "Invalid username or password" : error.Message);
+            });
     }
 
+    private IEnumerator LoadHomeSceneAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        SceneManager.LoadScene("HomeScene");
+    }
 
     [Serializable]
     private class RegisterResponse
@@ -217,5 +237,12 @@ public class AuthManager : MonoBehaviour
         public int id;
         public string username;
         public string message;
+    }
+
+    [Serializable]
+    private class UserData
+    {
+        public string username;
+        public string password;
     }
 }
