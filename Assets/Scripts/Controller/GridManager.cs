@@ -17,7 +17,7 @@ public class GridManager : MonoBehaviour
         Sprite[] allSprites = Resources.LoadAll<Sprite>("Cards");
         List<Sprite> selected = new List<Sprite>();
 
-        // Pick random unique pairs
+        
         List<int> usedIndexes = new List<int>();
         while (selected.Count < totalPairs)
         {
@@ -29,7 +29,7 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        // Duplicate for matching and shuffle
+        
         List<(Sprite, int)> cardDataList = new List<(Sprite, int)>();
         for (int i = 0; i < selected.Count; i++)
         {

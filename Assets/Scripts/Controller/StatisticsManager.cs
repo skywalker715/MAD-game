@@ -9,6 +9,8 @@ using UnityEngine.SceneManagement;
 
 public class StatisticsManager : MonoBehaviour
 {
+    public static StatisticsManager Instance { get; private set; }
+
     [Header("UI References")]
     [SerializeField] private TextMeshProUGUI bestScoreText;
     [SerializeField] private TextMeshProUGUI averageScoreText;
@@ -21,6 +23,16 @@ public class StatisticsManager : MonoBehaviour
     private int userId;
     private List<APIService.ScoreData> scoreHistory = new List<APIService.ScoreData>();
     private APIService.UserStatistics statisticsData;
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(this.gameObject);
+            return;
+        }
+        Instance = this;
+    }
 
     private void Start()
     {
@@ -36,6 +48,21 @@ public class StatisticsManager : MonoBehaviour
         if (mainMenuButton != null)
         {
             mainMenuButton.onClick.AddListener(LoadMainMenu);
+        }
+
+        RefreshStatistics();
+    }
+
+    public void RefreshStatistics()
+    {
+        if (userId == -1)
+        {
+            userId = PlayerPrefs.GetInt("UserId", -1);
+            if (userId == -1)
+            {
+                ShowNoDataMessage("User not logged in");
+                return;
+            }
         }
 
         FetchStatistics();

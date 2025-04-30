@@ -29,14 +29,6 @@ public class GameManager : MonoBehaviour
     public enum Difficulty { Easy, Medium, Hard }
     public static Difficulty selectedDifficulty = Difficulty.Easy;
     public Difficulty difficulty = Difficulty.Easy;
-    
-    public int totalGames = 0;
-    public int highestScore = 0;
-    public float averageScore = 0;
-    public string firstGameDate = "";
-    public string lastGameDate = "";
-    
-    public List<APIService.ScoreData> scoreHistory = new List<APIService.ScoreData>();
 
     void Awake()
     {
@@ -80,13 +72,6 @@ public class GameManager : MonoBehaviour
         UIManager.Instance.UpdateScore(currentScore);
         
         GenerateLevel();
-        
-        int userId = PlayerPrefs.GetInt("UserId", -1);
-        if (userId != -1)
-        {
-            LoadUserStatistics(userId);
-            LoadUserScores(userId);
-        }
     }
 
     void Update()
@@ -211,59 +196,15 @@ public class GameManager : MonoBehaviour
             currentScore,
             response => {
                 Debug.Log("Score saved successfully: " + response);
-                LoadUserStatistics(userId);
-                LoadUserScores(userId);
+                
+                // Refresh statistics if StatisticsManager is available
+                if (StatisticsManager.Instance != null)
+                {
+                    StatisticsManager.Instance.RefreshStatistics();
+                }
             },
             error => {
                 Debug.LogError("Error saving score: " + error.Message);
-            }
-        );
-    }
-    
-    public void LoadUserStatistics(int userId)
-    {
-        APIService.Instance.GetUserStatistics(
-            userId,
-            stats => {
-                totalGames = stats.total_games;
-                highestScore = stats.highest_score;
-                averageScore = stats.average_score;
-                firstGameDate = stats.first_game;
-                lastGameDate = stats.last_game;
-                
-                Debug.Log($"User statistics loaded: {totalGames} games, highest score: {highestScore}");
-            },
-            error => {
-                Debug.LogError("Error loading user statistics: " + error.Message);
-            }
-        );
-    }
-    
-    public void LoadUserScores(int userId)
-    {
-        APIService.Instance.GetUserScores(
-            userId,
-            scores => {
-                scoreHistory.Clear();
-                scoreHistory.AddRange(scores);
-                Debug.Log($"User scores loaded: {scoreHistory.Count} scores");
-            },
-            error => {
-                Debug.LogError("Error loading user scores: " + error.Message);
-            }
-        );
-    }
-    
-    public void GetScoreGraphUrl(int userId, Action<string> callback)
-    {
-        APIService.Instance.GetScoreGraph(
-            userId,
-            result => {
-                callback(result.chartUrl);
-            },
-            error => {
-                Debug.LogError("Error getting score graph: " + error.Message);
-                callback("");
             }
         );
     }

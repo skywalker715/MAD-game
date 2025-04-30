@@ -132,6 +132,9 @@ public class AuthManager : MonoBehaviour
             username, 
             password, 
             response => {
+                User user = User.FromRegisterResponse(response);
+                user.SaveToPlayerPrefs();
+                
                 registerStatusText.text = "Registration successful!";
                 StartCoroutine(ShowLoginPanelAfterDelay(1.5f));
             },
@@ -153,9 +156,8 @@ public class AuthManager : MonoBehaviour
             username,
             password,
             response => {
-                PlayerPrefs.SetInt("UserId", response.id);
-                PlayerPrefs.SetString("Username", response.username);
-                PlayerPrefs.Save();
+                User user = User.FromLoginResponse(response);
+                user.SaveToPlayerPrefs();
                 
                 loginStatusText.text = "Login successful!";
                 
