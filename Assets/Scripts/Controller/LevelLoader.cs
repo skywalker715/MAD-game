@@ -1,10 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public static class GameSettings
-{
-    public static GameManager.Difficulty selectedDifficulty;
-}
 
 public class LevelLoader : MonoBehaviour
 {

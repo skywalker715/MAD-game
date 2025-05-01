@@ -22,7 +22,7 @@ public class APIService : MonoBehaviour
         }
     }
 
-    public string serverUrl = "http://localhost:3000";
+    public string serverUrl = "http://192.168.1.152:3000";
 
     private void Awake()
     {
